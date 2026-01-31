@@ -4,7 +4,7 @@
 
 ---
 
-## 👨‍💻 Executive Summary (For Recruiters)
+## 👨‍💻 Executive Summary
 
 This project is a **Proof of Concept (PoC)** demonstrating advanced backend system design capabilities. It specifically addresses the complex challenges of state management, concurrency, and cheating in persistent online games.
 
