@@ -1,0 +1,45 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id        Int       @id @default(autoincrement())
+  username  String    @unique
+  villages  Village[]
+}
+
+model Village {
+  id          Int        @id @default(autoincrement())
+  name        String
+  userId      Int
+  lastTick    DateTime   @default(now())
+  
+  user        User       @relation(fields: [userId], references: [id])
+  resources   Resources?
+  buildings   Building[]
+}
+
+model Resources {
+  id        Int      @id @default(autoincrement())
+  villageId Int      @unique
+  wood      Float    @default(0)
+  clay      Float    @default(0)
+  iron      Float    @default(0)
+  crop      Float    @default(0)
+
+  village   Village  @relation(fields: [villageId], references: [id])
+}
+
+model Building {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  type      String
+  level     Int     @default(0)
+
+  village   Village @relation(fields: [villageId], references: [id])
+}

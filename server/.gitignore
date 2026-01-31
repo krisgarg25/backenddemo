@@ -1,0 +1,48 @@
+# compiled output
+/dist
+/node_modules
+/server/dist
+/server/node_modules
+
+# logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDEs and Editors
+/.idea
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Tests
+/coverage
+/server/coverage
+
+# Environment variables
+.env
+/server/.env
+
+# Database (SQLite)
+*.db
+*.db-journal
+/server/*.db
+/server/*.db-journal
+
+# Prisma
+/server/prisma/*.db
+/server/prisma/*.db-journal
