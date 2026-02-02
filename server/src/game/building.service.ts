@@ -1,8 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
-import { ResourceService } from './resources.service';
-import { QueueService } from './queue.service';
-import { v4 as uuidv4 } from 'uuid';
+import { ActionService } from './action.service';
 
 @Injectable()
 export class BuildingService {
@@ -10,8 +8,7 @@ export class BuildingService {
 
   constructor(
     private prisma: PrismaService,
-    private resourceService: ResourceService,
-    private queueService: QueueService,
+    private actionService: ActionService,
   ) {}
 
   async startUpgrade(villageId: number, buildingType: string) {
@@ -19,35 +16,23 @@ export class BuildingService {
     const cost = { wood: 50, clay: 50, iron: 50, crop: 50 };
     const durationSeconds = 10; // Fast for demo
 
-    // 2. Validate and Deduct Resources
-    // This throws if insufficient resources
-    await this.resourceService.deductResources(villageId, cost);
-
-    // 3. Create Job
-    const finishTime = new Date(new Date().getTime() + durationSeconds * 1000);
-    const jobId = uuidv4();
-
-    this.queueService.addJob({
-      id: jobId,
+    // 2. Schedule Action (Transactional: Check Resources -> Deduct -> Create Action)
+    const action = await this.actionService.scheduleAction(
       villageId,
-      type: `Upgrade ${buildingType}`,
-      finishTime,
-      action: async () => {
-        await this.upgradeBuilding(villageId, buildingType);
-      },
-    });
+      'BUILD_UPGRADE',
+      { buildingType },
+      durationSeconds,
+      cost,
+    );
 
     return {
       message: `Construction started for ${buildingType}`,
-      finishTime,
-      cost,
+      action,
     };
   }
 
-  private async upgradeBuilding(villageId: number, type: string) {
+  async upgradeBuilding(villageId: number, type: string) {
     // Find existing building or create new
-    // We treat 'type' as unique per village for simplicity in this demo,
-    // or we just find the first one.
     const building = await this.prisma.building.findFirst({
       where: { villageId, type },
     });

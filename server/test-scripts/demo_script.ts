@@ -33,7 +33,9 @@ interface SetupResponse {
 }
 
 interface BuildResponse {
-  finishTime: string;
+  action: {
+    endTime: string;
+  };
 }
 
 async function runDemo() {
@@ -84,9 +86,9 @@ async function runDemo() {
       console.log('Current Resources:', deductedRes.data.resources);
 
       const delay =
-        new Date(buildRes.data.finishTime).getTime() - new Date().getTime();
+        new Date(buildRes.data.action.endTime).getTime() - new Date().getTime();
       console.log(`Waiting ${delay / 1000}s for construction...`);
-      await sleep(delay + 1000); // Wait a bit extra
+      await sleep(delay + 2000); // Wait a bit extra for worker polling
 
       console.log('Checking Village Buildings...');
       const finalRes = await axios.get<Village>(
@@ -118,4 +120,4 @@ async function runDemo() {
   }
 }
 
-void runDemo();
+void runDemo().catch((err) => console.error(err));

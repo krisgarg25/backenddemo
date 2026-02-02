@@ -22,6 +22,7 @@ model Village {
   user        User       @relation(fields: [userId], references: [id])
   resources   Resources?
   buildings   Building[]
+  actions     ActionQueue[]
 }
 
 model Resources {
@@ -42,4 +43,18 @@ model Building {
   level     Int     @default(0)
 
   village   Village @relation(fields: [villageId], references: [id])
+}
+
+model ActionQueue {
+  id        Int       @id @default(autoincrement())
+  villageId Int
+  type      String    // e.g., "BUILD_UPGRADE"
+  data      String    // JSON string for payload
+  startTime DateTime
+  endTime   DateTime
+  status    String    @default("PENDING") // PENDING, PROCESSING, COMPLETED, FAILED
+
+  village   Village   @relation(fields: [villageId], references: [id])
+
+  @@index([endTime, status]) // Efficient polling
 }

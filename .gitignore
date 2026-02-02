@@ -42,8 +42,8 @@ Thumbs.db
 *.db-journal
 /server/*.db
 /server/*.db-journal
-.agent
 
 # Prisma
 /server/prisma/*.db
 /server/prisma/*.db-journal
+.agent

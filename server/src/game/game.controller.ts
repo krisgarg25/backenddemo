@@ -14,6 +14,7 @@ export class GameController {
   @Post('setup')
   async setup() {
     // Clear DB (Demo only)
+    await this.prisma.actionQueue.deleteMany();
     await this.prisma.building.deleteMany();
     await this.prisma.resources.deleteMany();
     await this.prisma.village.deleteMany();

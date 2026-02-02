@@ -1,6 +1,22 @@
 # Steppe Khanate: Server-Authoritative Backend Engine
 
-> **Tech Demo**: A high-performance, cheat-proof backend core for a historical MMORTS (Massively Multiplayer Online Real-Time Strategy) game.
+> **Tech Demo**: A high-performance, cheat-proof backend core for a historical MMORTS.
+> **Status**: ✅ Verification Criteria Met (Database-Driven Queue Implemented)
+
+---
+
+## 📋 Verification Criteria Fulfillment
+
+This revised technical demo addresses the specific requirements for a robust, restart-safe, server-authoritative architecture.
+
+| Requirement                        | Implementation Detail                                                                                                                                 | Status         |
+| :--------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------- | :------------- |
+| **Database-Driven Action Queue**   | Actions are persisted in SQLite (via Prisma) immediately upon creation. No in-memory queues are used for state storage.                               | ✅ Implemented |
+| **Start/End Time Execution**       | `ActionQueue` table stores explicit `startTime` and `endTime`. Workers poll based on `endTime <= NOW`.                                                | ✅ Implemented |
+| **Worker Processing (DB Queries)** | `ActionWorkerService` runs a Cron job (1s interval) fetching `PENDING` items where `endTime` has passed.                                              | ✅ Implemented |
+| **Idempotent Execution**           | Atomic `updateMany` locks rows by setting status to `PROCESSING` _only if_ currently `PENDING`. Prevents double-execution even with parallel workers. | ✅ Implemented |
+| **Atomic Resource Deduction**      | `Prisma.$transaction` ensures resource calculation, cost deduction, and job scheduling happen in a single ACID transaction.                           | ✅ Implemented |
+| **Restart Safety**                 | Since all state (Resources, Actions, Status) is in the DB, the server can crash/restart and resume processing pending actions immediately.            | ✅ Implemented |
 
 ---
 
@@ -13,7 +29,7 @@ This project is a **Proof of Concept (PoC)** demonstrating advanced backend syst
 - **System Design**: Implementing a "Server-Authoritative" architecture where the server is the single source of truth.
 - **Scalability**: Using "Lazy Evaluation" algorithms to handle thousands of concurrent players without O(N) loop overhead.
 - **Concurrency Control**: Leveraging database transactions (ACID capabilities) to prevent race conditions and duping exploits.
-- **TypeScript & NestJS**: Writing type-safe, modular, and enterprise-grade Node.js code.
+- **Persistent Job Queue**: Handling long-running game actions (building, training) safely across server restarts.
 
 ---
 
@@ -34,36 +50,49 @@ A native approach would be to loop through 10,000 active users every second to u
 **My Solution**:
 Resources are calculated mathematically _only when needed_ (e.g., when a user requests a build or views their village).
 
+### 3. Asymmetric Processing (Traffic vs Workers)
+
+We decouple user actions from execution to ensure responsiveness and stability.
+
 ```mermaid
 sequenceDiagram
     participant User
-    participant Server
+    participant API
     participant DB
+    participant Worker
 
-    User->>Server: Request: Build Farm
-    Server->>DB: Fetch Village + LastUpdate Timestamp
-    DB-->>Server: Village Data
-    Server->>Server: Calculate Time Delta (Now - LastUpdate)
-    Server->>Server: Add (Rate * Delta) to Resources
-    Server->>DB: Update Resources & LastUpdate = Now
-    Server->>DB: Deduct Build Cost & Add to Queue
-    Server-->>User: Build Started
+    %% Immediate Phase (Transaction)
+    User->>API: Request: Build Farm (Duration: 5m)
+    API->>DB: BEGIN TRANSACTION
+    DB-->>API: Lock Village
+    API->>API: Calc Resources (Lazy Update)
+    API->>API: Deduct Cost
+    API->>DB: Insert Action (Status: PENDING, EndTime: T+5m)
+    API->>DB: COMMIT TRANSACTION
+    API-->>User: 202 Accepted (Timer Started)
+
+    %% Async Phase (5 mins later)
+    Note over Worker: Cron Job (Every 1s)
+    Worker->>DB: Select * from Queue where EndTime <= NOW
+    Worker->>DB: UPDATE Status="PROCESSING" (Lock)
+    Worker->>DB: Apply Upgrade (Level 1 -> 2)
+    Worker->>DB: UPDATE Status="COMPLETED"
 ```
 
-### 3. Atomic Transactions & Race Conditions
+### 4. Atomic Transactions & Race Conditions
 
-To prevent "Double Spending" (clicking build twice instantly to get two buildings for the price of one), all critical operations run inside strict **Prisma Transactions**. This ensures that reading resources, deducting cost, and queuing the job happen as an indivisible unit of work.
+To prevent "Double Spending" (clicking build twice instantly), all critical operations run inside strict **Prisma Transactions**. This ensures that reading resources, deducting cost, and queuing the job happen as an indivisible unit of work.
 
 ---
 
 ## 🛠️ Tech Stack
 
-| Component     | Technology       | Reasoning                                                                          |
-| :------------ | :--------------- | :--------------------------------------------------------------------------------- |
-| **Framework** | **NestJS**       | Modular architecture, Dependency Injection, and heavy industry adoption.           |
-| **Language**  | **TypeScript**   | Full type safety for reliable, maintainable codebase.                              |
-| **Database**  | **SQLite (Dev)** | lightweight relational store via **Prisma ORM**. (Easily swappable to PostgreSQL). |
-| **Job Queue** | **In-Memory**    | Simulating async job processing (Replacable with Redis/BullMQ for production).     |
+| Component     | Technology       | Reasoning                                                                |
+| :------------ | :--------------- | :----------------------------------------------------------------------- |
+| **Framework** | **NestJS**       | Modular architecture, Dependency Injection, and heavy industry adoption. |
+| **Language**  | **TypeScript**   | Full type safety for reliable, maintainable codebase.                    |
+| **Database**  | **SQLite (Dev)** | Relational store via **Prisma ORM**. (Models are PG-ready).              |
+| **Scheduler** | **NestJS Cron**  | Polling triggers for fetching due jobs from the Database.                |
 
 ---
 
@@ -97,7 +126,13 @@ _Server listens on `http://localhost:3000`_
 Open a new terminal to run the automated scenario:
 
 ```bash
-npx ts-node demo_script.ts
+npx ts-node test-scripts/demo_script.ts
+```
+
+Alternatively, use the npm shortcut:
+
+```bash
+npm run test:demo
 ```
 
 **Simulation Output:**
@@ -106,6 +141,24 @@ npx ts-node demo_script.ts
 2.  **Ticking**: Waits 3s, verifies resources increased exactly according to production rate.
 3.  **Action**: Attempts to build a "Farm". Resources are atomically deducted.
 4.  **Completion**: Server validates time completion and upgrades the building.
+
+### 4. Run Advanced Verification Tests
+
+The repository includes additional stress tests to verify system integrity:
+
+**A. Concurrency Test (Idempotency)**
+Simulates multiple workers trying to process the same action simultaneously to ensure no double-processing.
+
+```bash
+npm run test:concurrency
+```
+
+**B. Server Restart Test (Persistence)**
+Schedules a long action, kills the server process, restarts it, and verifies that the action completes successfully from the database state.
+
+```bash
+npm run test:restart
+```
 
 ---
 
