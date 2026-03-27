@@ -1,5 +1,11 @@
 # Steppe Khanate: Server-Authoritative Backend Engine
 
+<p align="center">
+  <a href="https://krisgarg.in" target="_blank">
+    <img src="https://img.shields.io/badge/Portfolio-krisgarg.in-3B82F6?style=for-the-badge&logo=google-chrome&logoColor=white" />
+  </a>
+</p>
+
 > **Tech Demo**: A high-performance, cheat-proof backend core for a historical MMORTS.
 > **Status**: ✅ Verification Criteria Met (Database-Driven Queue Implemented)
 
@@ -9,12 +15,12 @@
 
 This revised technical demo addresses the specific requirements for a robust, restart-safe, server-authoritative architecture.
 
-| Requirement                        | Implementation Detail                                                                                                                                 | Status         |
-| :--------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------- | :------------- |
+| Requirement                        | Implementation Detail                                                                                                                                 | Status        |
+| :--------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------- | :------------ |
 | **Database-Driven Action Queue**   | Actions are persisted in SQLite (via Prisma) immediately upon creation. No in-memory queues are used for state storage.                               | ✅ Implemented |
 | **Start/End Time Execution**       | `ActionQueue` table stores explicit `startTime` and `endTime`. Workers poll based on `endTime <= NOW`.                                                | ✅ Implemented |
 | **Worker Processing (DB Queries)** | `ActionWorkerService` runs a Cron job (1s interval) fetching `PENDING` items where `endTime` has passed.                                              | ✅ Implemented |
-| **Idempotent Execution**           | Atomic `updateMany` locks rows by setting status to `PROCESSING` _only if_ currently `PENDING`. Prevents double-execution even with parallel workers. | ✅ Implemented |
+| **Idempotent Execution**           | Atomic `updateMany` locks rows by setting status to `PROCESSING` *only if* currently `PENDING`. Prevents double-execution even with parallel workers. | ✅ Implemented |
 | **Atomic Resource Deduction**      | `Prisma.$transaction` ensures resource calculation, cost deduction, and job scheduling happen in a single ACID transaction.                           | ✅ Implemented |
 | **Restart Safety**                 | Since all state (Resources, Actions, Status) is in the DB, the server can crash/restart and resume processing pending actions immediately.            | ✅ Implemented |
 
@@ -26,10 +32,10 @@ This project is a **Proof of Concept (PoC)** demonstrating advanced backend syst
 
 **Key Technical Competencies Demonstrated:**
 
-- **System Design**: Implementing a "Server-Authoritative" architecture where the server is the single source of truth.
-- **Scalability**: Using "Lazy Evaluation" algorithms to handle thousands of concurrent players without O(N) loop overhead.
-- **Concurrency Control**: Leveraging database transactions (ACID capabilities) to prevent race conditions and duping exploits.
-- **Persistent Job Queue**: Handling long-running game actions (building, training) safely across server restarts.
+* **System Design**: Implementing a "Server-Authoritative" architecture where the server is the single source of truth.
+* **Scalability**: Using "Lazy Evaluation" algorithms to handle thousands of concurrent players without O(N) loop overhead.
+* **Concurrency Control**: Leveraging database transactions (ACID capabilities) to prevent race conditions and duping exploits.
+* **Persistent Job Queue**: Handling long-running game actions (building, training) safely across server restarts.
 
 ---
 
@@ -39,16 +45,16 @@ This project is a **Proof of Concept (PoC)** demonstrating advanced backend syst
 
 In many basic apps, the client tells the server what happened. In this engine, **trust is zero**.
 
-- **Client**: Sends _intents_ (e.g., "Request to build Farm").
-- **Server**: Validates feasibility (Cost, Requirements), Deducts resources, and Schedules the event.
-- **Result**: Impossible to hack resources or speed up time via client-side manipulation.
+* **Client**: Sends *intents* (e.g., "Request to build Farm").
+* **Server**: Validates feasibility (Cost, Requirements), Deducts resources, and Schedules the event.
+* **Result**: Impossible to hack resources or speed up time via client-side manipulation.
 
 ### 2. Scalable "Lazy Ticking" (O(1) vs O(N))
 
 A native approach would be to loop through 10,000 active users every second to update their wood/clay/iron counts. This is computationally expensive (O(N)).
 
 **My Solution**:
-Resources are calculated mathematically _only when needed_ (e.g., when a user requests a build or views their village).
+Resources are calculated mathematically *only when needed* (e.g., when a user requests a build or views their village).
 
 ### 3. Asymmetric Processing (Traffic vs Workers)
 
@@ -102,7 +108,7 @@ This repository includes a simulation script that acts as a client, proving the 
 
 ### Prerequisites
 
-- Node.js (v18+)
+* Node.js (v18+)
 
 ### 1. Installation & Setup
 
@@ -119,7 +125,7 @@ npx prisma migrate dev --name init
 npm run start
 ```
 
-_Server listens on `http://localhost:3000`_
+*Server listens on `http://localhost:3000`*
 
 ### 3. Run the Simulation
 
@@ -137,10 +143,10 @@ npm run test:demo
 
 **Simulation Output:**
 
-1.  **World Gen**: Creates a new village (User + Data).
-2.  **Ticking**: Waits 3s, verifies resources increased exactly according to production rate.
-3.  **Action**: Attempts to build a "Farm". Resources are atomically deducted.
-4.  **Completion**: Server validates time completion and upgrades the building.
+1. **World Gen**: Creates a new village (User + Data).
+2. **Ticking**: Waits 3s, verifies resources increased exactly according to production rate.
+3. **Action**: Attempts to build a "Farm". Resources are atomically deducted.
+4. **Completion**: Server validates time completion and upgrades the building.
 
 ### 4. Run Advanced Verification Tests
 
@@ -166,6 +172,6 @@ npm run test:restart
 
 To take this from PoC to a live MMO with 50k+ users, the next steps are:
 
-- [ ] **PostgreSQL**: Migrate from SQLite for concurrent connection handling.
-- [ ] **Redis**: Implement BullMQ for distributed job queues (moving timers off-memory).
-- [ ] **WebSockets**: Replace polling with Socket.io for real-time "Attack Incoming" alerts.
+* [ ] **PostgreSQL**: Migrate from SQLite for concurrent connection handling.
+* [ ] **Redis**: Implement BullMQ for distributed job queues (moving timers off-memory).
+* [ ] **WebSockets**: Replace polling with Socket.io for real-time "Attack Incoming" alerts.
